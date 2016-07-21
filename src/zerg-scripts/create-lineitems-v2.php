@@ -25,7 +25,7 @@ foreach( $argv as $index => $arg ) {
 			if ( $json ) {
 				$bid = $json;
 			} else {
-				$bid = $arr[1];
+				$bid = explode( ",", $arr[1] );
 			}
 		} elseif ( $arr[0] == "exclude" || $arr[0] == "--exclude-bid" ) {
 			$json = json_decode( $arr[1], true );
@@ -405,7 +405,7 @@ if ( empty( $rtbSizes[$size] ) ) {
 	die( "Unknown size: {$size}" );
 }
 
-$prefix = "{$site}_{$network}_Bidder_%s";
+$prefix = "{$site}_{$network}_{$size}_%s";
 
 
 $lineItems = array();
