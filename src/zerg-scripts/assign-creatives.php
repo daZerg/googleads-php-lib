@@ -139,7 +139,7 @@ try {
 
 		// Create a statement to select all line items.
 		$statementBuilder = new StatementBuilder();
-		$statementBuilder->Where( "orderId = '{$orderId}' AND id != 252940335" );
+		$statementBuilder->Where( "orderId = '{$orderId}' AND id != 262883895" );
 		$statementBuilder->OrderBy('id ASC')
 			->Limit(StatementBuilder::SUGGESTED_PAGE_LIMIT);
 
@@ -161,14 +161,16 @@ try {
 				$totalResultSetSize = $page->totalResultSetSize;
 				$i = $page->startIndex;
 				foreach ($page->results as $lineItem) {
-					$bidLineItems[$lineItem->id] = $lineItem->name;
-					$lineItemCreatives[$lineItem->id] = array();
-					$cpm = $lineItem->costPerUnit->microAmount / 1000000;
-					print "Line Item {$lineItem->name} CPM {$cpm}\n";//{$lineItem->costPerUnit}\n";
-					$target = $lineItem->targeting->customTargeting->children[0]->children[0];
+					if (!$lineItem->isArchived) {
+						$bidLineItems[$lineItem->id] = $lineItem->name;
+						$lineItemCreatives[$lineItem->id] = array();
+						$cpm = $lineItem->costPerUnit->microAmount / 1000000;
+						print "Line Item {$lineItem->name} CPM {$cpm}\n";//{$lineItem->costPerUnit}\n";
+						$target = $lineItem->targeting->customTargeting->children[0]->children[0];
 
-					if ($target->keyId == "579975") {
-						$lineItemCustomTargeting[$lineItem->id] = $target->valueIds[0];
+						if ( $target->keyId == "579975" ) {
+							$lineItemCustomTargeting[$lineItem->id] = $target->valueIds[0];
+						}
 					}
 				}
 			}
@@ -178,6 +180,10 @@ try {
 
 		$customTargetingService =
 			$user->GetService('CustomTargetingService', 'v201605');
+
+		if ( !sizeof( $lineItemCustomTargeting ) ) {
+			continue;
+		}
 
 		// Create a statement to get all custom targeting values for a custom
 		// targeting key.

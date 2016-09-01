@@ -3,6 +3,7 @@ $network = false;
 
 $creativeNetworks = array(
 	"CPXi" => "110873415",
+	"RTK" => "112944015",
 );
 
 foreach( $argv as $index => $arg ) {
@@ -88,10 +89,6 @@ try {
 	// Log SOAP XML request and response.
 	$user->LogDefaults();
 
-	for ( $i = 1; $i <= $count; $i++ ) {
-
-	}
-
 	// Get the CreativeService.
 	$creativeService = $user->GetService('CreativeService', 'v201605');
 
@@ -101,30 +98,34 @@ try {
 </script>
 HTML;
 
-	$creatives = array();
-	$n = "_2";
+	for ( $i = 1; $i <= $count; $i++ ) {
+		foreach( $sizes as $size => $arr ) {
+			$n = "_$i";
+			if ( $i == 1 ) {
+				$n = "";
+			}
 
-	// Create the local custom creative object.
-	$customCreative = new ThirdPartyCreative();
-	$customCreative->snippet = $code;
-	$customCreative->expandedSnippet = $code;
-	$customCreative->sslScanResult = "SCANNED_SSL";
-	$customCreative->sslManualOverride = "NO_OVERRIDE";
-	$customCreative->lockedOrientation = "FREE_ORIENTATION";
-	$customCreative->advertiserId = $advertiserId;
-	$customCreative->name = "{$network}_{$size}{$n}";
-	$customCreative->size = new Size($sizes[$size][0], $sizes[$size][1], false);
+			// Create the local custom creative object.
+			$customCreative = new ThirdPartyCreative();
+			$customCreative->snippet = $code;
+			$customCreative->expandedSnippet = $code;
+			$customCreative->sslScanResult = "SCANNED_SSL";
+			$customCreative->sslManualOverride = "NO_OVERRIDE";
+			$customCreative->lockedOrientation = "FREE_ORIENTATION";
+			$customCreative->advertiserId = $advertiserId;
+			$customCreative->name = "{$network}_{$size}{$n}";
+			$customCreative->size = new Size($sizes[$size][0], $sizes[$size][1], false);
 
-	$creatives[] = $customCreative;
+			// Create the custom creative on the server.
+			$customCreatives = $creativeService->createCreatives(array($customCreative));
 
-	// Create the custom creative on the server.
-	$customCreatives = $creativeService->createCreatives(array($customCreative));
-
-	foreach ($customCreatives as $customCreative) {
-		printf("A custom creative with ID '%s', name '%s', and size '%sx%s' was "
-			. "created and can be previewed at: %s\n", $customCreative->id,
-			$customCreative->name, $customCreative->size->width,
-			$customCreative->size->height, $customCreative->previewUrl);
+			foreach ($customCreatives as $customCreative) {
+				printf("A custom creative with ID '%s', name '%s', and size '%sx%s' was "
+					. "created and can be previewed at: %s\n", $customCreative->id,
+					$customCreative->name, $customCreative->size->width,
+					$customCreative->size->height, $customCreative->previewUrl);
+			}
+		}
 	}
 } catch (OAuth2Exception $e) {
 	ExampleUtils::CheckForOAuth2Errors($e);
