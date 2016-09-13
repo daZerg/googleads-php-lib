@@ -45,7 +45,7 @@ $path = '../../src';
 set_include_path(get_include_path() . PATH_SEPARATOR . $path);
 
 require_once 'Google/Api/Ads/Dfp/Lib/DfpUser.php';
-require_once 'Google/Api/Ads/Dfp/Util/v201505/StatementBuilder.php';
+require_once 'Google/Api/Ads/Dfp/Util/v201605/StatementBuilder.php';
 
 require_once 'Google/Api/Ads/Common/Lib/ValidationException.php';
 require_once 'Google/Api/Ads/Common/Util/OAuth2Handler.php';
@@ -390,6 +390,7 @@ $rtbSites = array(
 	"Looper" => "55678335",
 	"NickiSwift" => "62479695",
 	"TheList" => "65368935",
+	"Mashed" => "69976935",
 );
 
 foreach( $lineItemsToCreate as $bidPrice ) {

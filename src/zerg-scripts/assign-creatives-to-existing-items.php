@@ -24,7 +24,7 @@ date_default_timezone_set("UTC");
  * limitations under the License.
  *
  * @package    GoogleApiAdsDfp
- * @subpackage v201505
+ * @subpackage v201605
  * @category   WebServices
  * @copyright  2014, Google Inc. All Rights Reserved.
  * @license    http://www.apache.org/licenses/LICENSE-2.0 Apache License,
@@ -40,7 +40,7 @@ $path = '../../src';
 set_include_path(get_include_path() . PATH_SEPARATOR . $path);
 
 require_once 'Google/Api/Ads/Dfp/Lib/DfpUser.php';
-require_once 'Google/Api/Ads/Dfp/Util/v201505/StatementBuilder.php';
+require_once 'Google/Api/Ads/Dfp/Util/v201605/StatementBuilder.php';
 
 require_once 'Google/Api/Ads/Common/Lib/ValidationException.php';
 require_once 'Google/Api/Ads/Common/Util/OAuth2Handler.php';
@@ -271,7 +271,7 @@ try {
     $user->LogDefaults();
 
     // Get the LineItemService.
-    $lineItemService = $user->GetService('LineItemService', 'v201505');
+    $lineItemService = $user->GetService('LineItemService', 'v201605');
 
     // Create a statement to select all line items.
     $statementBuilder = new StatementBuilder();
@@ -321,7 +321,7 @@ try {
     } while ($statementBuilder->GetOffset() < $totalResultSetSize);
 
     $customTargetingService =
-        $user->GetService('CustomTargetingService', 'v201505');
+        $user->GetService('CustomTargetingService', 'v201605');
 
     // Create a statement to get all custom targeting values for a custom
     // targeting key.
@@ -353,7 +353,7 @@ try {
 
     // Get the LineItemCreativeAssociationService.
     $licaService =
-        $user->GetService('LineItemCreativeAssociationService', 'v201505');
+        $user->GetService('LineItemCreativeAssociationService', 'v201605');
 
     // Create a statement to select all LICAs.
     $statementBuilder = new StatementBuilder();
