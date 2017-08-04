@@ -5,6 +5,8 @@ $creativeNetworks = array(
 	"CPXi" => "110873415",
 	"RTK" => "112944015",
 	"Conversant" => "83959695",
+	"SmartAdserver" => "4415639943",
+	"SmartAdServer" => "4415639943",
 );
 
 foreach( $argv as $index => $arg ) {
@@ -29,44 +31,32 @@ error_reporting(E_STRICT | E_ALL);
 $path =  '../../src';
 set_include_path(get_include_path() . PATH_SEPARATOR . $path);
 
-require_once 'Google/Api/Ads/Common/Util/MediaUtils.php';
-require_once 'Google/Api/Ads/Dfp/Lib/DfpUser.php';
+require '../../vendor/autoload.php';
 
-require_once 'Google/Api/Ads/Common/Lib/ValidationException.php';
-require_once 'Google/Api/Ads/Common/Util/OAuth2Handler.php';
+use Google\AdsApi\Common\OAuth2TokenBuilder;
+use Google\AdsApi\Dfp\DfpServices;
+use Google\AdsApi\Dfp\DfpSession;
+use Google\AdsApi\Dfp\DfpSessionBuilder;
+use Google\AdsApi\Dfp\v201702\CreativeService;
+use Google\AdsApi\Dfp\v201702\ThirdPartyCreative;
+use Google\AdsApi\Dfp\v201702\Size;
 
 /**
  * A collection of utility methods for examples.
  * @package GoogleApiAdsCommon
  * @subpackage Util
  */
-abstract class ExampleUtils {
+// Generate a refreshable OAuth2 credential for authentication.
+$oAuth2Credential = (new OAuth2TokenBuilder())
+	->fromFile()
+	->build();
 
-	/**
-	 * Checks for any OAuth2 Errors with relevant info. Otherwise, provide a
-	 * relevant error message.
-	 * @param Exception $raisedException is the exception to inspect
-	 */
-	public static function CheckForOAuth2Errors(Exception $raisedException) {
-		$errorMessage = "An error has occured:";
-		if ($raisedException instanceof OAuth2Exception) {
-			$errorMessage = "Your OAuth2 Credentials are incorrect.\nPlease see the"
-				. " GetRefreshToken.php example.";
-		} elseif ($raisedException instanceof ValidationException) {
-			$requiredAuthFields =
-				array('client_id', 'client_secret', 'refresh_token');
-			$trigger = $raisedException->GetTrigger();
-			if (in_array($trigger, $requiredAuthFields)) {
-				$errorMessage = sprintf(
-					"Your OAuth2 Credentials are missing the '%s'. Please see"
-					. " GetRefreshToken.php for further information.",
-					$trigger
-				);
-			}
-		}
-		printf("%s\n%s\n", $errorMessage, $raisedException->getMessage());
-	}
-}
+// Construct an API session configured from a properties file and the OAuth2
+// credentials above.
+$session = (new DfpSessionBuilder())
+	->fromFile()
+	->withOAuth2Credential($oAuth2Credential)
+	->build();
 
 // Set the ID of the advertiser (company) that all creatives will be assigned
 // to.
@@ -83,15 +73,11 @@ $sizes = array(
 $size = "300x250";
 
 try {
+	$dfpServices = new DfpServices();
 	// Get DfpUser from credentials in "../auth.ini"
-	// relative to the DfpUser.php file's directory.
-	$user = new DfpUser();
-
-	// Log SOAP XML request and response.
-	$user->LogDefaults();
 
 	// Get the CreativeService.
-	$creativeService = $user->GetService('CreativeService', 'v201605');
+	$creativeService = $dfpServices->get($session, CreativeService::class);
 
 	$code = <<<HTML
 <script language="javascript" type="text/javascript">
@@ -108,23 +94,22 @@ HTML;
 
 			// Create the local custom creative object.
 			$customCreative = new ThirdPartyCreative();
-			$customCreative->snippet = $code;
-			$customCreative->expandedSnippet = $code;
-			$customCreative->sslScanResult = "SCANNED_SSL";
-			$customCreative->sslManualOverride = "NO_OVERRIDE";
-			$customCreative->lockedOrientation = "FREE_ORIENTATION";
-			$customCreative->advertiserId = $advertiserId;
-			$customCreative->name = "{$network}_{$size}{$n}";
-			$customCreative->size = new Size($sizes[$size][0], $sizes[$size][1], false);
+			$customCreative->setSnippet( $code );
+			$customCreative->setExpandedSnippet( $code );
+			$customCreative->setSslScanResult( "SCANNED_SSL" );
+			$customCreative->setSslManualOverride( "NO_OVERRIDE" );
+			$customCreative->setLockedOrientation( "FREE_ORIENTATION" );
+			$customCreative->setAdvertiserId( $advertiserId );
+			$customCreative->setName( "{$network}_{$size}{$n}" );
+			$customCreative->setSize( new Size($sizes[$size][0], $sizes[$size][1], false) );
 
 			// Create the custom creative on the server.
 			$customCreatives = $creativeService->createCreatives(array($customCreative));
 
 			foreach ($customCreatives as $customCreative) {
 				printf("A custom creative with ID '%s', name '%s', and size '%sx%s' was "
-					. "created and can be previewed at: %s\n", $customCreative->id,
-					$customCreative->name, $customCreative->size->width,
-					$customCreative->size->height, $customCreative->previewUrl);
+					. "created and can be previewed at: %s\n", $customCreative->getId(),
+					$customCreative->getName(), $customCreative->getPreviewUrl() );
 			}
 		}
 	}

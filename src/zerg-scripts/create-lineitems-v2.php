@@ -44,55 +44,49 @@ error_reporting(E_STRICT | E_ALL);
 $path = '../../src';
 set_include_path(get_include_path() . PATH_SEPARATOR . $path);
 
-require_once 'Google/Api/Ads/Dfp/Lib/DfpUser.php';
-require_once 'Google/Api/Ads/Dfp/Util/v201605/StatementBuilder.php';
+require '../../vendor/autoload.php';
 
-require_once 'Google/Api/Ads/Common/Lib/ValidationException.php';
-require_once 'Google/Api/Ads/Common/Util/OAuth2Handler.php';
+use Google\AdsApi\Common\OAuth2TokenBuilder;
+use Google\AdsApi\Dfp\DfpServices;
+use Google\AdsApi\Dfp\DfpSession;
+use Google\AdsApi\Dfp\DfpSessionBuilder;
+use Google\AdsApi\Dfp\Util\v201702\StatementBuilder;
+use Google\AdsApi\Dfp\v201702\LineItemService;
+use Google\AdsApi\Dfp\v201702\LineItem;
+use Google\AdsApi\Dfp\v201702\OrderService;
+use Google\AdsApi\Dfp\v201702\CustomTargetingService;
+use Google\AdsApi\Dfp\v201702\CustomCriteria;
+use Google\AdsApi\Dfp\v201702\CustomCriteriaSet;
+use Google\AdsApi\Dfp\v201702\Targeting;
+use Google\AdsApi\Dfp\v201702\InventoryTargeting;
+use Google\AdsApi\Dfp\v201702\AdUnitTargeting;
+use Google\AdsApi\Dfp\v201702\Money;
+use Google\AdsApi\Dfp\v201702\Goal;
+use Google\AdsApi\Dfp\v201702\CreativePlaceholder;
+use Google\AdsApi\Dfp\v201702\Size;
 
 /**
  * A collection of utility methods for examples.
  * @package GoogleApiAdsCommon
  * @subpackage Util
  */
-abstract class ExampleUtils {
+// Generate a refreshable OAuth2 credential for authentication.
+$oAuth2Credential = (new OAuth2TokenBuilder())
+	->fromFile()
+	->build();
 
-    /**
-     * Checks for any OAuth2 Errors with relevant info. Otherwise, provide a
-     * relevant error message.
-     * @param Exception $raisedException is the exception to inspect
-     */
-    public static function CheckForOAuth2Errors(Exception $raisedException) {
-        $errorMessage = "An error has occured:";
-        if ($raisedException instanceof OAuth2Exception) {
-            $errorMessage = "Your OAuth2 Credentials are incorrect.\nPlease see the"
-                . " GetRefreshToken.php example.";
-        } elseif ($raisedException instanceof ValidationException) {
-            $requiredAuthFields =
-                array('client_id', 'client_secret', 'refresh_token');
-            $trigger = $raisedException->GetTrigger();
-            if (in_array($trigger, $requiredAuthFields)) {
-                $errorMessage = sprintf(
-                    "Your OAuth2 Credentials are missing the '%s'. Please see"
-                    . " GetRefreshToken.php for further information.",
-                    $trigger
-                );
-            }
-        }
-        printf("%s\n%s\n", $errorMessage, $raisedException->getMessage());
-    }
-}
+// Construct an API session configured from a properties file and the OAuth2
+// credentials above.
+$session = (new DfpSessionBuilder())
+	->fromFile()
+	->withOAuth2Credential($oAuth2Credential)
+	->build();
 
 try {
-	// Get DfpUser from credentials in "../auth.ini"
-	// relative to the DfpUser.php file's directory.
-	$user = new DfpUser();
-
-	// Log SOAP XML request and response.
-	$user->LogDefaults();
+	$dfpServices = new DfpServices();
 
 	// Get the LineItemService.
-	$orderService = $user->GetService( 'OrderService', 'v201605' );
+	$orderService = $dfpServices->get($session, OrderService::class);
 
 	// Create a statement to select all line items.
 	$statementBuilder = new StatementBuilder();
@@ -111,10 +105,10 @@ try {
 			$statementBuilder->ToStatement() );
 
 		// Display results.
-		if ( isset( $page->results ) ) {
-			$totalResultSetSize = $page->totalResultSetSize;
-			$i = $page->startIndex;
-			foreach ( $page->results as $order ) {
+		if ($page->getResults() !== null) {
+			$totalResultSetSize = $page->getTotalResultSetSize();
+			$i = $page->getStartIndex();
+			foreach ( $page->getResults() as $order ) {
 				$orderObj = $order;
 			}
 		}
@@ -132,12 +126,12 @@ try {
 if ( !$orderObj ) {
 	die( "Order Object Not Found.\n" );
 }
-$orderId = $orderObj->id;
+$orderId = $orderObj->getId();
 list(
 	$site,
 	$network,
 	$size
-) = explode( "_", $orderObj->name );
+) = explode( "_", $orderObj->getName() );
 
 $keySet = array(
 	"rtb_bid" => "579975",
@@ -386,6 +380,8 @@ $rtbNetworks = array(
 	"TripleLift" => "209461299135",
 	"Defy" => "209470752975",
 	"Conversant" => "209473300815",
+	"SmartAdserver" => "447855337384",
+	"SmartAdServer" => "447855337384",
 );
 
 $rtbSites = array(
@@ -417,18 +413,13 @@ $prefix = "{$site}_{$network}_{$size}_%s";
 $lineItems = array();
 
 try {
-    // Get DfpUser from credentials in "../auth.ini"
-    // relative to the DfpUser.php file's directory.
-    $user = new DfpUser();
-
-    // Log SOAP XML request and response.
-    $user->LogDefaults();
-
     // Get the LineItemService.
-    $lineItemService = $user->GetService('LineItemService', 'v201605');
+	$lineItemService =
+		$dfpServices->get($session, LineItemService::class);
 
     // Get the CustomTargetingService.
-    $customTargetingService = $user->GetService('CustomTargetingService', 'v201605');
+    $customTargetingService =
+	    $dfpServices->get($session, CustomTargetingService::class);
 
     // Create an array to store local line item objects.
     $lineItems = array();
@@ -436,27 +427,27 @@ try {
     foreach ( $lineItemsToCreate as $bidPrice ) {
         print "Preparing {$bidPrice}\n";
         $customCriteria = new CustomCriteria();
-        $customCriteria->keyId = $keySet['rtb_bid'];
-        $customCriteria->operator = 'IS';
-        $customCriteria->valueIds = array( $rtbBids[$bidPrice] );
+        $customCriteria->setKeyId( $keySet['rtb_bid'] );
+        $customCriteria->setOperator( 'IS' );
+        $customCriteria->setValueIds( array( $rtbBids[$bidPrice] ) );
 
         $customCriteriaNetwork = new CustomCriteria();
-        $customCriteriaNetwork->keyId = $keySet['rtb_network'];
-        $customCriteriaNetwork->operator = 'IS';
-        $customCriteriaNetwork->valueIds = array( $rtbNetworks[$network] );
+        $customCriteriaNetwork->setKeyId( $keySet['rtb_network'] );
+        $customCriteriaNetwork->setOperator( 'IS' );
+        $customCriteriaNetwork->setValueIds( array( $rtbNetworks[$network] ) );
 
         $customCriteriaSize = new CustomCriteria();
-	    $customCriteriaSize->keyId = $keySet['rtb_size'];
-	    $customCriteriaSize->operator = 'IS';
-	    $customCriteriaSize->valueIds = array( $rtbSizes[$size] );
+	    $customCriteriaSize->setKeyId( $keySet['rtb_size'] );
+	    $customCriteriaSize->setOperator( 'IS' );
+	    $customCriteriaSize->setValueIds( array( $rtbSizes[$size] ) );
 
         $subCustomCriteriaSet = new CustomCriteriaSet();
-        $subCustomCriteriaSet->logicalOperator = 'AND';
-        $subCustomCriteriaSet->children = array($customCriteria, $customCriteriaNetwork, $customCriteriaSize);
+        $subCustomCriteriaSet->setLogicalOperator( 'AND' );
+        $subCustomCriteriaSet->setChildren( array($customCriteria, $customCriteriaNetwork, $customCriteriaSize) );
 
         $customCriteriaSet = new CustomCriteriaSet();
-        $customCriteriaSet->logicalOperator = "OR";
-        $customCriteriaSet->children = array( $subCustomCriteriaSet );
+        $customCriteriaSet->setLogicalOperator( "OR" );
+        $customCriteriaSet->setChildren( array( $subCustomCriteriaSet ) );
 
         // Create targeting.
         $targeting = new Targeting();
@@ -464,73 +455,71 @@ try {
         $inventoryTargeting = new InventoryTargeting();
 
         $adUnitTargeting = new AdUnitTargeting();
-        $adUnitTargeting->adUnitId = $rtbSites[$site];
-        $adUnitTargeting->includeDescendants = 'TRUE';
+        $adUnitTargeting->setAdUnitId( $rtbSites[$site] );
+        $adUnitTargeting->setIncludeDescendants( 'TRUE' );
 
-        $inventoryTargeting->targetedAdUnits = array( $adUnitTargeting );
+        $inventoryTargeting->setTargetedAdUnits( array( $adUnitTargeting ) );
 
-        $targeting->inventoryTargeting = $inventoryTargeting;
-        $targeting->customTargeting = $customCriteriaSet;
+        $targeting->setInventoryTargeting( $inventoryTargeting );
+        $targeting->setCustomTargeting( $customCriteriaSet );
 
         $lineItem = new LineItem();
-        $lineItem->name = sprintf( $prefix, $bidPrice );
-        $lineItem->orderId = $orderId;
-        $lineItem->targeting = $targeting;
-        $lineItem->lineItemType = 'PRICE_PRIORITY';
-        $lineItem->allowOverbook = 'FALSE';
+        $lineItem->setName( sprintf( $prefix, $bidPrice ) );
+        $lineItem->setOrderId( $orderId );
+        $lineItem->setTargeting( $targeting );
+        $lineItem->setLineItemType( 'PRICE_PRIORITY' );
+        $lineItem->setAllowOverbook( 'FALSE' );
 
 	    $sizeArr = explode( "x", $size );
 	    $placeholder = new CreativePlaceholder();
-	    $placeholder->size = new Size( $sizeArr[0], $sizeArr[1], false );
+	    $placeholder->setSize( new Size( $sizeArr[0], $sizeArr[1], false ) );
 
         // Set the size of creatives that can be associated with this line item.
-        $lineItem->creativePlaceholders = array(
+        $lineItem->setCreativePlaceholders( array(
             $placeholder,
-        );
+        ) );
 
         // Set the creative rotation type to even.
-        $lineItem->creativeRotationType = 'OPTIMIZED';
-        $lineItem->deliveryRateType = 'FRONTLOADED';
-        $lineItem->roadblockingType = 'ONE_OR_MORE';
+        $lineItem->setCreativeRotationType( 'OPTIMIZED' );
+        $lineItem->setDeliveryRateType( 'FRONTLOADED' );
+        $lineItem->setRoadblockingType( 'ONE_OR_MORE' );
 
         // Set the length of the line item to run.
-        $lineItem->startDateTimeType = 'IMMEDIATELY';
-        $lineItem->endDateTime = null;
-        $lineItem->unlimitedEndDateTime = 'TRUE';
-        $lineItem->autoExtensionDays = 0;
-        $lineItem->priority = 12;
-        $lineItem->targetPlatform = 'ANY';
-        $lineItem->environmentType = 'BROWSER';
-        $lineItem->companionDeliveryOption = 'UNKNOWN';
-        $lineItem->creativePersistenceType = 'NOT_PERSISTENT';
-        $lineItem->reserveAtCreation = false;
+        $lineItem->setStartDateTimeType( 'IMMEDIATELY');
+        $lineItem->setEndDateTime( null);
+        $lineItem->setUnlimitedEndDateTime( 'TRUE');
+        $lineItem->setAutoExtensionDays( 0);
+        $lineItem->setPriority( 12);
+//        $lineItem->setTargetPlatform( 'ANY');
+        $lineItem->setEnvironmentType( 'BROWSER');
+        $lineItem->setCompanionDeliveryOption( 'UNKNOWN');
+        $lineItem->setCreativePersistenceType( 'NOT_PERSISTENT');
+        $lineItem->setReserveAtCreation( false);
 
         // Set the cost per unit to $2.
-        $lineItem->costType = 'CPM';
-        $lineItem->costPerUnit = new Money('USD', $bidPrice*1000000);
+        $lineItem->setCostType( 'CPM');
+        $lineItem->setCostPerUnit( new Money('USD', $bidPrice*1000000));
 
-        $lineItem->status = 'PAUSED';
+        $lineItem->setStatus( 'PAUSED');
 
         // Set the number of units bought to 500,000 so that the budget is
         // $1,000.
         $goal = new Goal();
-        $goal->units = -1;
-        $goal->unitType = 'IMPRESSIONS';
-        $goal->goalType = 'NONE';
-        $lineItem->primaryGoal = $goal;
+        $goal->setUnits( -1);
+        $goal->setUnitType( 'IMPRESSIONS');
+        $goal->setGoalType( 'NONE');
+        $lineItem->setPrimaryGoal( $goal);
 
-        $lineItems[] = $lineItem;
+	    $lineItems[] = $lineItem;
     }
 
-    // Create the line items on the server.
-    $lineItems = $lineItemService->createLineItems($lineItems);
+	$lineItems = $lineItemService->createLineItems($lineItems);
 
-    // Display results.
     if (isset($lineItems)) {
         foreach ($lineItems as $lineItem) {
             printf("A line item with with ID %d, belonging to order ID %d, and name "
-                . "%s was created\n", $lineItem->id, $lineItem->orderId,
-                $lineItem->name);
+                . "%s was created\n", $lineItem->getId(), $lineItem->getOrderId(),
+                $lineItem->getName());
         }
     } else {
         printf("No line items created.");

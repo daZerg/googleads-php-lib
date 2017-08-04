@@ -14,58 +14,45 @@ date_default_timezone_set("UTC");
 $path = '../../src';
 set_include_path(get_include_path() . PATH_SEPARATOR . $path);
 
-require_once 'Google/Api/Ads/Dfp/Lib/DfpUser.php';
-require_once 'Google/Api/Ads/Dfp/Util/v201605/StatementBuilder.php';
+require '../../vendor/autoload.php';
 
-require_once 'Google/Api/Ads/Common/Lib/ValidationException.php';
-require_once 'Google/Api/Ads/Common/Util/OAuth2Handler.php';
+use Google\AdsApi\Common\OAuth2TokenBuilder;
+use Google\AdsApi\Dfp\DfpServices;
+use Google\AdsApi\Dfp\DfpSession;
+use Google\AdsApi\Dfp\DfpSessionBuilder;
+use Google\AdsApi\Dfp\v201702\CreativeService;
+use Google\AdsApi\Dfp\v201702\OrderService;
+use Google\AdsApi\Dfp\v201702\LineItemService;
+use Google\AdsApi\Dfp\v201702\CustomTargetingService;
+use Google\AdsApi\Dfp\v201702\LineItemCreativeAssociation;
+use Google\AdsApi\Dfp\v201702\LineItemCreativeAssociationService;
+use Google\AdsApi\Dfp\Util\v201702\StatementBuilder;
 
 /**
  * A collection of utility methods for examples.
  * @package GoogleApiAdsCommon
  * @subpackage Util
  */
-abstract class ExampleUtils {
+// Generate a refreshable OAuth2 credential for authentication.
+$oAuth2Credential = (new OAuth2TokenBuilder())
+	->fromFile()
+	->build();
 
-	/**
-	 * Checks for any OAuth2 Errors with relevant info. Otherwise, provide a
-	 * relevant error message.
-	 * @param Exception $raisedException is the exception to inspect
-	 */
-	public static function CheckForOAuth2Errors(Exception $raisedException) {
-		$errorMessage = "An error has occured:";
-		if ($raisedException instanceof OAuth2Exception) {
-			$errorMessage = "Your OAuth2 Credentials are incorrect.\nPlease see the"
-				. " GetRefreshToken.php example.";
-		} elseif ($raisedException instanceof ValidationException) {
-			$requiredAuthFields =
-				array('client_id', 'client_secret', 'refresh_token');
-			$trigger = $raisedException->GetTrigger();
-			if (in_array($trigger, $requiredAuthFields)) {
-				$errorMessage = sprintf(
-					"Your OAuth2 Credentials are missing the '%s'. Please see"
-					. " GetRefreshToken.php for further information.",
-					$trigger
-				);
-			}
-		}
-		printf("%s\n%s\n", $errorMessage, $raisedException->getMessage());
-	}
-}
+// Construct an API session configured from a properties file and the OAuth2
+// credentials above.
+$session = (new DfpSessionBuilder())
+	->fromFile()
+	->withOAuth2Credential($oAuth2Credential)
+	->build();
 
 $advertiserId = false;
 $sizes = array();
 
 try {
-	// Get DfpUser from credentials in "../auth.ini"
-	// relative to the DfpUser.php file's directory.
-	$user = new DfpUser();
-
-	// Log SOAP XML request and response.
-	$user->LogDefaults();
+	$dfpServices = new DfpServices();
 
 	// Get the CreativeService.
-	$orderService = $user->GetService('OrderService', 'v201605');
+	$orderService = $dfpServices->get($session, OrderService::class);
 
 	// Create a statement to select all creatives.
 	$statementBuilder = new StatementBuilder();
@@ -79,21 +66,21 @@ try {
 	do {
 		// Get creatives by statement.
 		$page = $orderService->getOrdersByStatement(
-			$statementBuilder->ToStatement());
+			$statementBuilder->ToStatement() );
 
 		// Display results.
-		if (isset($page->results)) {
-			$totalResultSetSize = $page->totalResultSetSize;
-			$i = $page->startIndex;
-			foreach ($page->results as $order) {
-				$advertiserId = $order->advertiserId;
+		if ($page->getResults() !== null) {
+			$totalResultSetSize = $page->getTotalResultSetSize();
+			$i = $page->getStartIndex();
+			foreach ( $page->getResults() as $order ) {
+				$advertiserId = $order->getAdvertiserId();
 				list(
 					$site,
 					$x,
 					$size
-				) = explode( "_", $order->name );
-				if ( !isset( $sizes[$order->id] ) ) {
-					$sizes[$order->id] = $size;
+				) = explode( "_", $order->getName() );
+				if ( !isset( $sizes[$order->getId()] ) ) {
+					$sizes[$order->getId()] = $size;
 				}
 			}
 		}
@@ -102,20 +89,21 @@ try {
 	} while ($statementBuilder->GetOffset() < $totalResultSetSize);
 
 	// Get the CreativeService.
-	$creativeService = $user->GetService('CreativeService', 'v201605');
-	$lineItemService = $user->GetService('LineItemService', 'v201605');
+	$creativeService = $dfpServices->get($session, CreativeService::class);
+	$lineItemService = $dfpServices->get($session, LineItemService::class);
 
 	foreach( $sizes as $orderId => $size ) {
 		$creativeIds = array();
-
-		// Get the CreativeService.
-		$creativeService = $user->GetService('CreativeService', 'v201605');
 
 		// Create a statement to select all creatives.
 		$statementBuilder = new StatementBuilder();
 		$statementBuilder->Where( "advertiserId = '{$advertiserId}' AND name LIKE '%{$size}%'" );
 		$statementBuilder->OrderBy('id ASC')
 			->Limit(StatementBuilder::SUGGESTED_PAGE_LIMIT);
+
+		// Get creatives by statement.
+		$page = $creativeService->getCreativesByStatement(
+			$statementBuilder->ToStatement());
 
 		// Default for total result set size.
 		$totalResultSetSize = 0;
@@ -126,11 +114,11 @@ try {
 				$statementBuilder->ToStatement());
 
 			// Display results.
-			if (isset($page->results)) {
-				$totalResultSetSize = $page->totalResultSetSize;
-				$i = $page->startIndex;
-				foreach ($page->results as $creative) {
-					$creativeIds[] = $creative->id;
+			if ($page->getResults() !== null) {
+				$totalResultSetSize = $page->getTotalResultSetSize();
+				$i = $page->getStartIndex();
+				foreach ( $page->getResults() as $creative ) {
+					$creativeIds[] = $creative->getId();
 				}
 			}
 
@@ -139,9 +127,8 @@ try {
 
 		// Create a statement to select all line items.
 		$statementBuilder = new StatementBuilder();
-		$statementBuilder->Where( "orderId = '{$orderId}' AND id != 262883895" );
-		$statementBuilder->OrderBy('id ASC')
-			->Limit(StatementBuilder::SUGGESTED_PAGE_LIMIT);
+		$statementBuilder->Where( "orderId = '{$orderId}'" );
+		$statementBuilder->Limit(StatementBuilder::SUGGESTED_PAGE_LIMIT);
 
 		// Default for total result set size.
 		$totalResultSetSize = 0;
@@ -157,19 +144,21 @@ try {
 				$statementBuilder->ToStatement());
 
 			// Display results.
-			if (isset($page->results)) {
-				$totalResultSetSize = $page->totalResultSetSize;
-				$i = $page->startIndex;
-				foreach ($page->results as $lineItem) {
-					if (!$lineItem->isArchived) {
-						$bidLineItems[$lineItem->id] = $lineItem->name;
-						$lineItemCreatives[$lineItem->id] = array();
-						$cpm = $lineItem->costPerUnit->microAmount / 1000000;
-						print "Line Item {$lineItem->name} CPM {$cpm}\n";//{$lineItem->costPerUnit}\n";
-						$target = $lineItem->targeting->customTargeting->children[0]->children[0];
+			if ($page->getResults() !== null) {
+				$totalResultSetSize = $page->getTotalResultSetSize();
+				$i = $page->getStartIndex();
+				foreach ( $page->getResults() as $lineItem ) {
+					if (!$lineItem->getIsArchived()) {
+						$bidLineItems[$lineItem->getId()] = $lineItem->getName();
+						$lineItemCreatives[$lineItem->getId()] = array();
+						$cpm = $lineItem->getCostPerUnit()->getMicroAmount() / 1000000;
+						print "Line Item {$lineItem->getName()} CPM {$cpm}\n";//{$lineItem->costPerUnit}\n";
+						$targetArr = $lineItem->getTargeting()->getCustomTargeting()->getChildren()[0]->getChildren();
 
-						if ( $target->keyId == "579975" ) {
-							$lineItemCustomTargeting[$lineItem->id] = $target->valueIds[0];
+						foreach( $targetArr as $target ) {
+							if ( $target->getKeyId() == "579975" ) {
+								$lineItemCustomTargeting[$lineItem->getId()] = $target->getValueIds()[0];
+							}
 						}
 					}
 				}
@@ -178,17 +167,18 @@ try {
 			$statementBuilder->IncreaseOffsetBy(StatementBuilder::SUGGESTED_PAGE_LIMIT);
 		} while ($statementBuilder->GetOffset() < $totalResultSetSize);
 
-		$customTargetingService =
-			$user->GetService('CustomTargetingService', 'v201605');
+		$customTargetingService = $dfpServices->get($session, CustomTargetingService::class);
 
 		if ( !sizeof( $lineItemCustomTargeting ) ) {
 			continue;
 		}
 
+		print ( "Custom Targeting\n" );
+
 		// Create a statement to get all custom targeting values for a custom
 		// targeting key.
 		$statementBuilder = new StatementBuilder();
-		$statementBuilder->Where('id IN ('.implode( ",", $lineItemCustomTargeting ).")" )
+		$statementBuilder->Where('customTargetingKeyId = 579975 AND id IN ('.implode( ",", $lineItemCustomTargeting ).")" )
 			->OrderBy('id ASC')
 			->Limit(StatementBuilder::SUGGESTED_PAGE_LIMIT);
 
@@ -201,11 +191,11 @@ try {
 				$statementBuilder->ToStatement());
 
 			// Display results.
-			if (isset($page->results)) {
-				$totalResultSetSize = $page->totalResultSetSize;
-				$i = $page->startIndex;
-				foreach ($page->results as $customTargetingValue) {
-					$customTargetLabels[$customTargetingValue->id] = $customTargetingValue->name;
+			if ($page->getResults() !== null) {
+				$totalResultSetSize = $page->getTotalResultSetSize();
+				$i = $page->getStartIndex();
+				foreach ( $page->getResults() as $customTargetingValue ) {
+					$customTargetLabels[$customTargetingValue->getId()] = $customTargetingValue->getName();
 				}
 			}
 
@@ -213,8 +203,7 @@ try {
 		} while (intval( $statementBuilder->GetOffset()) < $totalResultSetSize);
 
 		// Get the LineItemCreativeAssociationService.
-		$licaService =
-			$user->GetService('LineItemCreativeAssociationService', 'v201605');
+		$licaService = $dfpServices->get($session, LineItemCreativeAssociationService::class);
 
 		// Create a statement to select all LICAs.
 		$statementBuilder = new StatementBuilder();
@@ -225,26 +214,26 @@ try {
 		// Default for total result set size.
 		$totalResultSetSize = 0;
 
+		$page = $licaService->getLineItemCreativeAssociationsByStatement(
+			$statementBuilder->ToStatement());
+
 		do {
 			// Get LICAs by statement.
-			$page = $licaService->getLineItemCreativeAssociationsByStatement(
-				$statementBuilder->ToStatement());
-
 			// Display results.
-			if (isset($page->results)) {
-				$totalResultSetSize = $page->totalResultSetSize;
-				$i = $page->startIndex;
-				foreach ($page->results as $lica) {
-					if (isset($lica->creativeSetId)) {
+			if ($page->getResults() !== null) {
+				$totalResultSetSize = $page->getTotalResultSetSize();
+				$i = $page->getStartIndex();
+				foreach ( $page->getResults() as $lica ) {
+					if ($lica->getCreativeSetId()) {
 						printf("%d) LICA with line item ID %d, and creative set ID %d was "
-							. "found.\n", $i++, $lica->lineItemId, $lica->creativeSetId);
+							. "found.\n", $i++, $lica->getLineItemId(), $lica->getCreativeSetId());
 					} else {
                     printf("%d) LICA with line item ID %d, and creative ID %d was "
-                        . "found.\n", $i++, $lica->lineItemId, $lica->creativeId);
-						if ( ! isset( $lineItemCreatives[$lica->lineItemId] ) ) {
-							$lineItemCreatives[$lica->lineItemId] = array();
+                        . "found.\n", $i++, $lica->getLineItemId(), $lica->getCreativeId());
+						if ( ! isset( $lineItemCreatives[$lica->getLineItemId()] ) ) {
+							$lineItemCreatives[$lica->getLineItemId()] = array();
 						}
-						$lineItemCreatives[$lica->lineItemId][] = $lica->creativeId;
+						$lineItemCreatives[$lica->getLineItemId()][] = $lica->getCreativeId();
 					}
 				}
 			}
@@ -258,27 +247,31 @@ try {
 
 			foreach( $creativeIds as $creativeId ) {
 				if ( !in_array( $creativeId, $creativeArr ) ) {
-					print "Adding creative {$creativeId} to {$lineItemId}\n";
+					try {
+						print "Adding creative {$creativeId} to {$lineItemId}\n";
 
-					$lica = new LineItemCreativeAssociation();
-					$lica->creativeId = $creativeId;
-					$lica->lineItemId = $lineItemId;
+						$lica = new LineItemCreativeAssociation();
+						$lica->setCreativeId( $creativeId );
+						$lica->setLineItemId( $lineItemId );
 
-					$licas = array($lica);
+						$licas = array( $lica );
 
-					// Create the LICAs on the server.
-					$licas = $licaService->createLineItemCreativeAssociations($licas);
+						// Create the LICAs on the server.
+						$licas = $licaService->createLineItemCreativeAssociations( $licas );
 
-					// Display results.
-					if (isset($licas)) {
-						foreach ($licas as $lica) {
-							print 'A LICA with line item ID "' . $lica->lineItemId
-								. '", creative ID "' . $lica->creativeId
-								. '", and status "' . $lica->status
-								. "\" was created.\n";
+						// Display results.
+						if ( isset( $licas ) ) {
+							foreach ( $licas as $lica ) {
+								print 'A LICA with line item ID "' . $lica->getLineItemId()
+									. '", creative ID "' . $lica->getCreativeId()
+									. '", and status "' . $lica->getStatus()
+									. "\" was created.\n";
+							}
+						} else {
+							print "No LICAs created.";
 						}
-					} else {
-						print "No LICAs created.";
+					} catch( Exception $e ) {
+						print $e->getMessage()."\n";
 					}
 				} else {
 					print "Skipping creative {$creativeId} for {$lineItemId}\n";
