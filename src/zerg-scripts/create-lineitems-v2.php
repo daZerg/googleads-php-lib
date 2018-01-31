@@ -348,8 +348,11 @@ $rtbSizes = array(
 	"300x250" => "198988831215",
 	"300x600" => "198988831455",
 	"320x50" => "198988831695",
+	"320x100" => "447903539994",
 //	"336x280" => "198988831935",
 	"728x90" => "198988832175",
+	"970x90" => "447903729080",
+	"970x250" => "447903727706",
 );
 
 foreach( $excludeBid as $exclude ) {
@@ -381,7 +384,7 @@ $rtbNetworks = array(
 	"Defy" => "209470752975",
 	"Conversant" => "209473300815",
 	"SmartAdserver" => "447855337384",
-	"SmartAdServer" => "447855337384",
+	"AdYouLike" => "447871550194",
 );
 
 $rtbSites = array(
@@ -390,6 +393,7 @@ $rtbSites = array(
 	"NickiSwift" => "62479695",
 	"TheList" => "65368935",
 	"Mashed" => "69976935",
+	"SVG" => "21667607955",
 );
 
 foreach( $lineItemsToCreate as $bidPrice ) {

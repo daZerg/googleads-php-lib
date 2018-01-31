@@ -6,7 +6,9 @@ $creativeNetworks = array(
 	"RTK" => "112944015",
 	"Conversant" => "83959695",
 	"SmartAdserver" => "4415639943",
-	"SmartAdServer" => "4415639943",
+	"AdYouLike" => "4451034716",
+	"DistrictM" => "106940655",
+	"AppNexus" => "96418335",
 );
 
 foreach( $argv as $index => $arg ) {
@@ -64,10 +66,13 @@ $advertiserId = $creativeNetworks[$network];
 $count = 5;
 
 $sizes = array(
-	"300x250" => array( 300, 250 ),
-	"320x50" => array( 320, 50 ),
-	"300x600" => array( 300, 600 ),
-	"728x90" => array( 728, 90 ),
+//	"300x250" => array( 300, 250 ),
+//	"320x50" => array( 320, 50 ),
+	"320x100" => array( 320, 100 ),
+//	"300x600" => array( 300, 600 ),
+//	"728x90" => array( 728, 90 ),
+	"970x90" => array( 970, 90 ),
+	"970x250" => array( 970, 250 ),
 );
 
 $size = "300x250";
@@ -109,7 +114,8 @@ HTML;
 			foreach ($customCreatives as $customCreative) {
 				printf("A custom creative with ID '%s', name '%s', and size '%sx%s' was "
 					. "created and can be previewed at: %s\n", $customCreative->getId(),
-					$customCreative->getName(), $customCreative->getPreviewUrl() );
+					$customCreative->getName(), $sizes[$size][0], $sizes[$size][1],
+					$customCreative->getPreviewUrl() );
 			}
 		}
 	}
