@@ -20,13 +20,13 @@ use Google\AdsApi\Common\OAuth2TokenBuilder;
 use Google\AdsApi\Dfp\DfpServices;
 use Google\AdsApi\Dfp\DfpSession;
 use Google\AdsApi\Dfp\DfpSessionBuilder;
-use Google\AdsApi\Dfp\v201702\CreativeService;
-use Google\AdsApi\Dfp\v201702\OrderService;
-use Google\AdsApi\Dfp\v201702\LineItemService;
-use Google\AdsApi\Dfp\v201702\CustomTargetingService;
-use Google\AdsApi\Dfp\v201702\LineItemCreativeAssociation;
-use Google\AdsApi\Dfp\v201702\LineItemCreativeAssociationService;
-use Google\AdsApi\Dfp\Util\v201702\StatementBuilder;
+use Google\AdsApi\Dfp\v201805\CreativeService;
+use Google\AdsApi\Dfp\v201805\OrderService;
+use Google\AdsApi\Dfp\v201805\LineItemService;
+use Google\AdsApi\Dfp\v201805\CustomTargetingService;
+use Google\AdsApi\Dfp\v201805\LineItemCreativeAssociation;
+use Google\AdsApi\Dfp\v201805\LineItemCreativeAssociationService;
+use Google\AdsApi\Dfp\Util\v201805\StatementBuilder;
 
 /**
  * A collection of utility methods for examples.
@@ -56,7 +56,7 @@ try {
 
 	// Create a statement to select all creatives.
 	$statementBuilder = new StatementBuilder();
-	$statementBuilder->Where( "name LIKE '%{$network}%'" );
+	$statementBuilder->Where( "name LIKE 'TheList_{$network}%'" );
 	$statementBuilder->OrderBy('id ASC')
 		->Limit(StatementBuilder::SUGGESTED_PAGE_LIMIT);
 
@@ -79,7 +79,7 @@ try {
 					$x,
 					$size
 				) = explode( "_", $order->getName() );
-				if ( !isset( $sizes[$order->getId()] ) ) {
+				if ( !isset( $sizes[$order->getId()] ) && $size ) {
 					$sizes[$order->getId()] = $size;
 				}
 			}
@@ -97,7 +97,7 @@ try {
 
 		// Create a statement to select all creatives.
 		$statementBuilder = new StatementBuilder();
-		$statementBuilder->Where( "advertiserId = '{$advertiserId}' AND name LIKE '%{$size}%'" );
+		$statementBuilder->Where( "advertiserId = '{$advertiserId}' AND name LIKE '{$network}_{$size}%' and id != '66040807575'" );
 		$statementBuilder->OrderBy('id ASC')
 			->Limit(StatementBuilder::SUGGESTED_PAGE_LIMIT);
 

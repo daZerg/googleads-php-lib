@@ -9,6 +9,8 @@ $creativeNetworks = array(
 	"AdYouLike" => "4451034716",
 	"DistrictM" => "106940655",
 	"AppNexus" => "96418335",
+	"33Across" => "111612855",
+	"Criteo" => "50444535",
 );
 
 foreach( $argv as $index => $arg ) {
@@ -39,9 +41,9 @@ use Google\AdsApi\Common\OAuth2TokenBuilder;
 use Google\AdsApi\Dfp\DfpServices;
 use Google\AdsApi\Dfp\DfpSession;
 use Google\AdsApi\Dfp\DfpSessionBuilder;
-use Google\AdsApi\Dfp\v201702\CreativeService;
-use Google\AdsApi\Dfp\v201702\ThirdPartyCreative;
-use Google\AdsApi\Dfp\v201702\Size;
+use Google\AdsApi\Dfp\v201805\CreativeService;
+use Google\AdsApi\Dfp\v201805\ThirdPartyCreative;
+use Google\AdsApi\Dfp\v201805\Size;
 
 /**
  * A collection of utility methods for examples.
@@ -66,11 +68,11 @@ $advertiserId = $creativeNetworks[$network];
 $count = 5;
 
 $sizes = array(
-//	"300x250" => array( 300, 250 ),
-//	"320x50" => array( 320, 50 ),
+	"300x250" => array( 300, 250 ),
+	"320x50" => array( 320, 50 ),
 	"320x100" => array( 320, 100 ),
-//	"300x600" => array( 300, 600 ),
-//	"728x90" => array( 728, 90 ),
+	"300x600" => array( 300, 600 ),
+	"728x90" => array( 728, 90 ),
 	"970x90" => array( 970, 90 ),
 	"970x250" => array( 970, 250 ),
 );
@@ -105,6 +107,7 @@ HTML;
 			$customCreative->setSslManualOverride( "NO_OVERRIDE" );
 			$customCreative->setLockedOrientation( "FREE_ORIENTATION" );
 			$customCreative->setAdvertiserId( $advertiserId );
+			$customCreative->setIsSafeFrameCompatible( false );
 			$customCreative->setName( "{$network}_{$size}{$n}" );
 			$customCreative->setSize( new Size($sizes[$size][0], $sizes[$size][1], false) );
 

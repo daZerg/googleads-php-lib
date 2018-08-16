@@ -53,8 +53,8 @@ use Google\AdsApi\Common\OAuth2TokenBuilder;
 use Google\AdsApi\Dfp\DfpServices;
 use Google\AdsApi\Dfp\DfpSession;
 use Google\AdsApi\Dfp\DfpSessionBuilder;
-use Google\AdsApi\Dfp\Util\v201702\StatementBuilder;
-use Google\AdsApi\Dfp\v201702\LineItemService;
+use Google\AdsApi\Dfp\Util\v201805\StatementBuilder;
+use Google\AdsApi\Dfp\v201805\LineItemService;
 
 /**
  * A collection of utility methods for examples.
