@@ -11,6 +11,7 @@ $creativeNetworks = array(
 	"AppNexus" => "96418335",
 	"33Across" => "111612855",
 	"Criteo" => "50444535",
+	"Undertone" => "94257015",
 );
 
 foreach( $argv as $index => $arg ) {
@@ -65,19 +66,19 @@ $session = (new DfpSessionBuilder())
 // Set the ID of the advertiser (company) that all creatives will be assigned
 // to.
 $advertiserId = $creativeNetworks[$network];
-$count = 5;
+$count = 4;
 
 $sizes = array(
+//	"1x1" => array( 1, 1 ),
+//	"1x3" => array( 1, 3 ),
 	"300x250" => array( 300, 250 ),
-	"320x50" => array( 320, 50 ),
-	"320x100" => array( 320, 100 ),
-	"300x600" => array( 300, 600 ),
-	"728x90" => array( 728, 90 ),
-	"970x90" => array( 970, 90 ),
-	"970x250" => array( 970, 250 ),
+//	"320x50" => array( 320, 50 ),
+//	"320x100" => array( 320, 100 ),
+//	"300x600" => array( 300, 600 ),
+//	"728x90" => array( 728, 90 ),
+//	"970x90" => array( 970, 90 ),
+//	"970x250" => array( 970, 250 ),
 );
-
-$size = "300x250";
 
 try {
 	$dfpServices = new DfpServices();

@@ -1,11 +1,15 @@
 <?php
 
+$network = "";
+$order = false;
 foreach( $argv as $index => $arg ) {
 	if ( stripos( $arg, "--" ) == 0 ) {
 		$arr = explode( "=", $arg );
 
 		if ( $arr[0] == "--network" ) {
 			$network = $arr[1];
+		} elseif ( $arr[0] == "--order" ) {
+			$order = $arr[1];
 		}
 	}
 }
@@ -54,9 +58,13 @@ try {
 	// Get the CreativeService.
 	$orderService = $dfpServices->get($session, OrderService::class);
 
+	$where = "name LIKE '{$network}%'";
+	if ( $order ) {
+		$where = "id = '{$order}'";
+	}
 	// Create a statement to select all creatives.
 	$statementBuilder = new StatementBuilder();
-	$statementBuilder->Where( "name LIKE 'TheList_{$network}%'" );
+	$statementBuilder->Where( $where );
 	$statementBuilder->OrderBy('id ASC')
 		->Limit(StatementBuilder::SUGGESTED_PAGE_LIMIT);
 
@@ -118,12 +126,17 @@ try {
 				$totalResultSetSize = $page->getTotalResultSetSize();
 				$i = $page->getStartIndex();
 				foreach ( $page->getResults() as $creative ) {
+					print "Found Creative: {$creative->getId()}\n";
 					$creativeIds[] = $creative->getId();
 				}
 			}
 
 			$statementBuilder->IncreaseOffsetBy(StatementBuilder::SUGGESTED_PAGE_LIMIT);
 		} while ($statementBuilder->GetOffset() < $totalResultSetSize);
+
+		if ( !sizeof( $creativeIds ) ) {
+			die( "Could not find creatives\n" );
+		}
 
 		// Create a statement to select all line items.
 		$statementBuilder = new StatementBuilder();

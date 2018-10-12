@@ -7,19 +7,28 @@ $bid = false;
 $orderId = false;
 $excludeBid = array();
 $orderObj = false;
+$start = false;
 
+$configVars = array();
 foreach( $argv as $index => $arg ) {
 	if ( stripos( $arg, "--" ) == 0 ) {
 		$arr = explode( "=", $arg );
 
 		if ( $arr[0] == "--size" ) {
 			$size = $arr[1];
+			$configVars['size'] = $size;
 		} elseif ( $arr[0] == "--network" ) {
 			$network = $arr[1];
+			$configVars['network'] = $network;
 		} elseif ( $arr[0] == "--site" ) {
 			$site = $arr[1];
+			$configVars['site'] = $site;
 		} elseif ( $arr[0] == "--order" ) {
 			$orderId = $arr[1];
+			$configVars['order'] = $orderId;
+		} elseif ( $arr[0] == "--start" ) {
+			$start = $arr[1];
+			$configVars['start'] = $start;
 		}
 	}
 }
@@ -114,11 +123,11 @@ if ( !$orderObj ) {
 }
 $orderId = $orderObj->getId();
 $orderName = $orderObj->getName();
-list(
-	$site,
-	$network,
-	$size
-) = explode( "_", $orderName );
+//list(
+//	$site,
+//	$network,
+//	$size
+//) = explode( "_", $orderName );
 
 $keySet = array(
 	"rtb_bid" => "579975",
@@ -160,8 +169,19 @@ $adUnits = array(
 		"base" => "69976935",
 		"gallery" => "21732487972",
 		"infinite" => "21732488875"
-	)
+	),
+	"TheList" => array(
+		"base" => "65368935",
+	),
+	"Grunge" => array(
+		"base" => "61229775",
+	),
+
 );
+
+//if ( $configVars['site'] != $site && stripos( $orderName, $configVars['site'] ) !== false ) {
+//	$site = $configVars['site'];
+//}
 
 $lineItems = array();
 
@@ -174,9 +194,14 @@ try {
     $customTargetingService =
 	    $dfpServices->get($session, CustomTargetingService::class);
 
+	$where = "orderId = $orderId";
+	if ( !empty( $start ) ) {
+		$where .= " AND id >= {$start}";
+	}
+
 	// Create a statement to select all line items.
 	$statementBuilder = new StatementBuilder();
-	$statementBuilder->Where( "orderId = $orderId" );
+	$statementBuilder->Where( $where );
 	$statementBuilder->OrderBy('id ASC')
 		->Limit(StatementBuilder::SUGGESTED_PAGE_LIMIT);
 
@@ -189,16 +214,14 @@ try {
 			$statementBuilder->ToStatement());
 
 		// Display results.
-		if ($page->getResults() !== null) {
+		if ($page->getResults() !== null && !empty( $adUnits[$site] ) ) {
 			$totalResultSetSize = $page->getTotalResultSetSize();
 			$i = $page->getStartIndex();
 			foreach ( $page->getResults() as $lineItem ) {
 				$targeting = $lineItem->getTargeting();
 				$inventoryTargeting = $targeting->getInventoryTargeting();
 
-				$adUnitTargetingBase = new AdUnitTargeting();
-				$adUnitTargetingBase->setAdUnitId( $adUnits[$site]['base'] );
-				$adUnitTargetingBase->setIncludeDescendants( 'TRUE' );
+				$currentTargets = $inventoryTargeting->getTargetedAdUnits();
 
 				$adUnitTargetingGallery = new AdUnitTargeting();
 				$adUnitTargetingGallery->setAdUnitId( $adUnits[$site]['gallery'] );
@@ -208,7 +231,7 @@ try {
 				$adUnitTargetingInfinite->setAdUnitId( $adUnits[$site]['infinite'] );
 				$adUnitTargetingInfinite->setIncludeDescendants( 'TRUE' );
 
-				$inventoryTargeting->setTargetedAdUnits( array( $adUnitTargetingBase, $adUnitTargetingGallery, $adUnitTargetingInfinite ) );
+				$inventoryTargeting->setTargetedAdUnits( array_merge( $currentTargets, array( $adUnitTargetingGallery, $adUnitTargetingInfinite ) ) );
 				$targeting->setInventoryTargeting( $inventoryTargeting );
 
 				echo "Updating Line Item {$lineItem->getId()}\n";
